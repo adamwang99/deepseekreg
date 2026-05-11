@@ -108,6 +108,61 @@ def poll_otp(cj, lw_token, timeout_secs=60):
     
     return None
 
+def click_register_button(page):
+    """Click register button with multiple fallback strategies."""
+    import time
+    
+    # Strategy 1: Playwright click with scroll + force
+    try:
+        btn = page.locator('button:has-text("注册")').first
+        if btn.count() > 0:
+            btn.scroll_into_view_if_needed()
+            time.sleep(0.5)
+            btn.click(force=True, timeout=10000)
+            return True
+    except Exception as e:
+        print(f'  ⚠️ Strategy 1 failed: {str(e)[:60]}')
+    
+    # Strategy 2: get_by_role
+    try:
+        btn = page.get_by_role("button", name="注册")
+        if btn.count() > 0:
+            btn.first.scroll_into_view_if_needed()
+            time.sleep(0.5)
+            btn.first.click(force=True, timeout=10000)
+            return True
+    except Exception as e:
+        print(f'  ⚠️ Strategy 2 failed: {str(e)[:60]}')
+    
+    # Strategy 3: XPath
+    try:
+        btn = page.locator('//button[contains(text(), "注册")]')
+        if btn.count() > 0:
+            btn.first.scroll_into_view_if_needed()
+            time.sleep(0.5)
+            btn.first.click(force=True, timeout=10000)
+            return True
+    except Exception as e:
+        print(f'  ⚠️ Strategy 3 failed: {str(e)[:60]}')
+    
+    # Strategy 4: JavaScript click
+    try:
+        page.evaluate('''() => {
+            const btns = document.querySelectorAll('button');
+            for (const b of btns) {
+                if (b.textContent.includes('注册') && b.offsetParent !== null) {
+                    b.click();
+                    return true;
+                }
+            }
+            return false;
+        }''')
+        return True
+    except Exception as e:
+        print(f'  ⚠️ Strategy 4 failed: {str(e)[:60]}')
+    
+    return False
+
 def register_account(domain):
     """Full registration flow for one account."""
     from playwright.sync_api import sync_playwright
@@ -137,10 +192,14 @@ def register_account(domain):
                 ctx.add_init_script('Object.defineProperty(navigator, "webdriver", { get: () => undefined });')
                 page = ctx.new_page()
                 
-                page.goto('https://chat.deepseek.com/', wait_until='domcontentloaded', timeout=30000)
+                # Go directly to signup page
+                page.goto('https://chat.deepseek.com/sign_up', wait_until='domcontentloaded', timeout=30000)
                 time.sleep(3)
-                page.locator('text=立即注册').first.click()
-                time.sleep(2)
+                
+                # If redirected to home page, click 立即注册
+                if 'sign_up' not in page.url:
+                    page.locator('text=立即注册').first.click()
+                    time.sleep(2)
                 
                 inp = page.locator('input')
                 inp.nth(0).fill(email)
@@ -172,7 +231,16 @@ def register_account(domain):
                     print(f'  ✅ OTP: {otp}')
                     inp2 = page.locator('input')
                     inp2.nth(3).fill(otp)
-                    page.locator('button:has-text("注册")').first.click()
+                    time.sleep(1)  # Wait before clicking
+                    
+                    # Click register with fallbacks
+                    clicked = click_register_button(page)
+                    if not clicked:
+                        print('  ❌ Could not click register button')
+                        ctx.close()
+                        browser.close()
+                        continue
+                    
                     time.sleep(5)
                     
                     page.screenshot(path=f'/tmp/ds_result_{domain.replace(".","_")}.png')
