@@ -4,18 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       count:
-        description: 'Number of accounts to create'
+        description: 'Number of accounts'
         required: true
-        default: '5'
+        default: '9'
         type: string
       password:
-        description: 'Common password for all accounts'
+        description: 'Password for all accounts'
         required: true
         default: 'abcABC123@@'
         type: string
-  # Also can run on schedule (e.g., daily)
-  # schedule:
-  #   - cron: '0 */6 * * *'
 
 jobs:
   create-accounts:
@@ -23,64 +20,65 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        domain: ["newdelhi.io.vn", "mailo.edu.pl", "nik.edu.pl", "gddp2018.edu.vn", "itmo.edu.pl", "mailer.edu.pl", "newyork.io.vn", "dulieu.io.vn", "jakarta.io.vn"]
+        domain: [
+          "newdelhi.io.vn",
+          "mailo.edu.pl",
+          "nik.edu.pl",
+          "gddp2018.edu.vn",
+          "itmo.edu.pl",
+          "mailer.edu.pl",
+          "newyork.io.vn",
+          "dulieu.io.vn",
+          "jakarta.io.vn"
+        ]
       fail-fast: false
       max-parallel: 9
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           pip install playwright
           python -m playwright install chromium
           python -m playwright install-deps chromium
+          sudo apt-get install -y -qq xvfb
 
-      - name: Register DeepSeek Account
+      - name: Register
         id: register
         env:
           DS_PASSWORD: ${{ inputs.password || 'abcABC123@@' }}
           DS_DOMAIN: ${{ matrix.domain }}
-        run: |
-          python register_account.py
+        run: xvfb-run python register_account.py
 
-      - name: Upload Account
+      - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: account-${{ matrix.account }}
+          name: account-${{ matrix.domain }}
           path: accounts.txt
           if-no-files-found: ignore
 
-  collect-results:
-    name: Collect All Accounts
+  collect:
+    name: Collect accounts
     needs: [create-accounts]
     runs-on: ubuntu-latest
     if: always()
-    
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Combine accounts
+      - name: Combine
         run: |
           echo "# DeepSeek Accounts" > all_accounts.txt
-          echo "# Created: $(date -u)" >> all_accounts.txt
           echo "# Password: ${{ inputs.password || 'abcABC123@@' }}" >> all_accounts.txt
           echo "---" >> all_accounts.txt
           find artifacts -name "accounts.txt" -exec cat {} \; | sort -u >> all_accounts.txt
           cat all_accounts.txt
-
-      - name: Upload combined accounts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: all-accounts
           path: all_accounts.txt
