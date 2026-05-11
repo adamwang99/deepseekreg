@@ -7,7 +7,8 @@ Truy cập: http://localhost:8080
 import json, re, time, random, string, html as hm, http.cookiejar, urllib.request, urllib.parse
 import sqlite3, os, csv, io, threading, queue, sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from playwright.sync_api import sync_playwright
+# Lazy import: Playwright only loaded when worker starts
+# from playwright.sync_api import sync_playwright
 
 # === CONFIG ===
 DB_FILE = os.path.join(os.path.dirname(__file__), 'accounts.db')
@@ -187,6 +188,7 @@ def poll_otp(cj, lw_token):
     return None
 
 def register_one(domain, proxy, password, browser):
+    from playwright.sync_api import sync_playwright
     """Register one DeepSeek account using proxy."""
     add_log(f'📧 Creating email ({domain})...')
     email, cj, lw_token = create_email(domain)
@@ -373,6 +375,7 @@ class Handler(BaseHTTPRequestHandler):
         # Start worker threads
         def run():
             try:
+                from playwright.sync_api import sync_playwright
                 with sync_playwright() as p:
                     browser = p.chromium.launch(headless=True, args=['--no-sandbox'])
                     threads = []
