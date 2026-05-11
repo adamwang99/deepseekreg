@@ -454,6 +454,7 @@ th{background:#f8f8f8;font-weight:600;position:sticky;top:0}
 <body>
 <div class="container">
 <h1>🚀 DeepSeek Account Creator</h1>
+<div style="text-align:center;color:#888;font-size:13px;margin-bottom:20px">Made by Long SRO by order of Adam Wang CEO</div>
 
 <div class="status-bar" id="statusBar">
   <div class="stat"><div class="stat-value" id="totalAccounts">0</div><div class="stat-label">Total Accounts</div></div>
