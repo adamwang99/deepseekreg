@@ -1,0 +1,91 @@
+name: Create DeepSeek Accounts
+
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Number of accounts to create'
+        required: true
+        default: '5'
+        type: string
+      password:
+        description: 'Common password for all accounts'
+        required: true
+        default: 'abcABC123@@'
+        type: string
+  # Also can run on schedule (e.g., daily)
+  # schedule:
+  #   - cron: '0 */6 * * *'
+
+jobs:
+  create-accounts:
+    name: Create DeepSeek Account
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Each account gets a separate runner (unique IP)
+        account: [1, 2, 3, 4, 5]
+      # Don't cancel all if one fails
+      fail-fast: false
+      # Max 5 concurrent jobs
+      max-parallel: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          python -m playwright install chromium
+          # Install system deps for Playwright
+          python -m playwright install-deps chromium
+
+      - name: Register DeepSeek Account
+        id: register
+        env:
+          DS_PASSWORD: ${{ inputs.password || 'abcABC123@@' }}
+          # Cycle through domains for each account
+          DS_DOMAIN: ${{ fromJson('["newdelhi.io.vn","mailo.edu.pl","nik.edu.pl","gddp2018.edu.vn","itmo.edu.pl","mailer.edu.pl","newyork.io.vn","dulieu.io.vn","jakarta.io.vn"]')[matrix.account % 9] }}
+        run: |
+          python register_account.py
+
+      - name: Upload Account
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-${{ matrix.account }}
+          path: accounts.txt
+          if-no-files-found: ignore
+
+  collect-results:
+    name: Collect All Accounts
+    needs: [create-accounts]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Combine accounts
+        run: |
+          echo "# DeepSeek Accounts" > all_accounts.txt
+          echo "# Created: $(date -u)" >> all_accounts.txt
+          echo "# Password: ${{ inputs.password || 'abcABC123@@' }}" >> all_accounts.txt
+          echo "---" >> all_accounts.txt
+          find artifacts -name "accounts.txt" -exec cat {} \; | sort -u >> all_accounts.txt
+          cat all_accounts.txt
+
+      - name: Upload combined accounts
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-accounts
+          path: all_accounts.txt
