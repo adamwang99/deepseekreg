@@ -23,12 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Each account gets a separate runner (unique IP)
-        account: [1, 2, 3, 4, 5]
-      # Don't cancel all if one fails
+        domain: ["newdelhi.io.vn", "mailo.edu.pl", "nik.edu.pl", "gddp2018.edu.vn", "itmo.edu.pl", "mailer.edu.pl", "newyork.io.vn", "dulieu.io.vn", "jakarta.io.vn"]
       fail-fast: false
-      # Max 5 concurrent jobs
-      max-parallel: 5
+      max-parallel: 9
 
     steps:
       - name: Checkout code
@@ -43,15 +40,13 @@ jobs:
         run: |
           pip install playwright
           python -m playwright install chromium
-          # Install system deps for Playwright
           python -m playwright install-deps chromium
 
       - name: Register DeepSeek Account
         id: register
         env:
           DS_PASSWORD: ${{ inputs.password || 'abcABC123@@' }}
-          # Cycle through domains for each account
-          DS_DOMAIN: ${{ fromJson('["newdelhi.io.vn","mailo.edu.pl","nik.edu.pl","gddp2018.edu.vn","itmo.edu.pl","mailer.edu.pl","newyork.io.vn","dulieu.io.vn","jakarta.io.vn"]')[matrix.account % 9] }}
+          DS_DOMAIN: ${{ matrix.domain }}
         run: |
           python register_account.py
 
