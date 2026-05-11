@@ -98,7 +98,13 @@ def poll_otp(cj, lw_token, timeout_secs=60):
                     if msgs:
                         for msg in msgs:
                             cr = msg.get('content', '')
-                            code = re.search(r'(\d{4,8})', cr)
+                            # Prefer OTP from code-text class div (usually 6-digit)
+                            code_text = re.search(r'class="code-text"[^>]*>.*?font-size:\s*76px[^>]*>\s*(\d+)\s*<', cr, re.DOTALL)
+                            if code_text:
+                                print(f'  📧 OTP: {code_text.group(1)}')
+                                return code_text.group(1)
+                            # Fallback: extract any 5-8 digit number
+                            code = re.search(r'(\d{5,8})', cr)
                             if code:
                                 print(f'  📧 OTP: {code.group(1)}')
                                 return code.group(1)
